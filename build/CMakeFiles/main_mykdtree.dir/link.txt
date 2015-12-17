@@ -1,0 +1,1 @@
+/usr/bin/g++    -O3 -Wall  -std=gnu++0x -fpermissive    CMakeFiles/main_mykdtree.dir/examples/main_mykdtree.cpp.o  -o main_mykdtree -rdynamic -lGLU -lGL -lSM -lICE -lX11 -lXext -lglut -lXmu -lXi 

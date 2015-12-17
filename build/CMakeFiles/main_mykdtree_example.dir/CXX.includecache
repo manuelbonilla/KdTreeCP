@@ -1,0 +1,32 @@
+#IncludeRegexLine: ^[ 	]*#[ 	]*(include|import)[ 	]*[<"]([^">]+)([">])
+
+#IncludeRegexScan: ^.*$
+
+#IncludeRegexComplain: ^$
+
+#IncludeRegexTransform: 
+
+../include/example.hpp
+
+../include/mykdtree.hpp
+iostream
+-
+vector
+-
+algorithm
+-
+stack
+-
+random
+-
+
+/home/manuelb/Downloads/kdtree/examples/main_mykdtree_example.cpp
+iostream
+-
+mykdtree.hpp
+-
+example.hpp
+-
+GL/glut.h
+-
+

@@ -1,0 +1,213 @@
+#define LIBBOT_PRESENT 0
+
+#include <list>
+#include <iostream>
+#include <ctime>
+#include <stdio.h>
+#include <stdlib.h>
+//#include <math.h>
+#include "PQP.h"
+#include "model.h"
+#include "MatVec.h"
+#include "rrts.hpp"
+#include "system_single_integrator.h" 	
+#include <unistd.h>
+#include <sys/types.h>
+#include <sys/wait.h>
+using namespace RRTstar;
+using namespace SingleIntegrator;
+using namespace std;
+
+#define PI 3.141592653589793
+#define gdl 7
+
+Rlink Base, Link1, Link2, Link3, Link4, Link5, Link6, Link7, Obstacle;
+
+double q[gdl];
+double deg =PI/180.0;
+
+typedef Planner<State,Trajectory,System> planner_t;
+typedef Vertex<State,Trajectory,System> vertex_t;
+
+void load_link(char teststring[], PQP_Model *link);
+void load_robot();
+void load_obstacles();
+void show_graphical_results();
+System KUKA;	
+
+int main () {
+    
+  double deg = PI/180.0;
+  planner_t rrts;
+  load_obstacles();
+  load_robot();
+        
+  KUKA.setNumDimensions (gdl);
+  KUKA.RobotNum(1);
+  KUKA.regionOperating.setNumDimensions(gdl);
+  KUKA.regionOperating.center[0] = 0.0;
+  KUKA.regionOperating.center[1] = 0.0;
+  KUKA.regionOperating.center[2] = 0.0;
+  KUKA.regionOperating.center[3] = 0.0;
+  KUKA.regionOperating.center[4] = 0.0;
+  KUKA.regionOperating.center[5] = 0.0;
+  KUKA.regionOperating.center[6] = 0.0;
+  KUKA.regionOperating.size[0] = 340.0*deg;
+  KUKA.regionOperating.size[1] = 240.0*deg;
+  KUKA.regionOperating.size[2] = 340.0*deg;
+  KUKA.regionOperating.size[3] = 240.0*deg;
+  KUKA.regionOperating.size[4] = 340.0*deg;
+  KUKA.regionOperating.size[5] = 240.0*deg;
+  KUKA.regionOperating.size[6] = 340.0*deg;
+    
+   
+  
+  KUKA.rootState.x[0] = 0.0;
+  KUKA.rootState.x[1] = 45.0*deg;
+  KUKA.rootState.x[2] = 0.0;
+  KUKA.rootState.x[3] = 0.0;
+  KUKA.rootState.x[4] = 0.0;
+  KUKA.rootState.x[5] = 0.0;
+  KUKA.rootState.x[6] = 0.0;
+  
+  KUKA.goalState.x[0] = 0.0;
+  KUKA.goalState.x[1] = -45.0*deg;
+  KUKA.goalState.x[2] = 0.0;
+  KUKA.goalState.x[3] = 0.0;
+  KUKA.goalState.x[4] = 0.0;
+  KUKA.goalState.x[5] = 0.0;
+  KUKA.goalState.x[6] = 0.0;
+
+  rrts.setSystem (KUKA); 
+  rrts.initialize ();
+  rrts.setGamma (PI*1);
+  
+  clock_t start = clock();
+  
+  for (int i = 0; i < 1000; i++){
+    rrts.iteration ();
+     if (i%100 == 0)
+      cout << "Iteration : " << i << endl;
+  }
+  
+  clock_t finish = clock();
+  cout << endl << "Time : " << ((double)(finish-start))/CLOCKS_PER_SEC << endl;
+  
+  if (rrts.look_for_goal ())
+	printf("Goal reached \n");
+  else
+	printf("no path for gol \n");
+	
+  FILE *trajectory_final;
+  trajectory_final = fopen("results.txt","wt");  
+  list<double*> trajectoryOut;
+  rrts.getBestTrajectory (trajectoryOut);
+  for (list<double*>::iterator iter = trajectoryOut.begin(); iter != trajectoryOut.end(); iter++) {
+	double *stateArrFromParentCurr = *iter;
+	for (int i=0;i<7;i++){
+	  fprintf(trajectory_final, "%lf ", stateArrFromParentCurr[i]);
+	}
+	fprintf(trajectory_final, "\n");
+  }
+  fclose(trajectory_final); 
+
+  show_graphical_results();
+
+  return 0;
+}
+
+void load_link(char teststring[], PQP_Model *link){
+
+  FILE *fp;
+  int i, ntris;
+  int llll;
+	
+  char nombreslll[sizeof teststring+100];	
+  sprintf(nombreslll, teststring);
+  fp = fopen(nombreslll,"r");
+  if (fp == NULL) { fprintf(stderr,"Couldn't open %s\n", nombreslll); exit(-1); }
+  llll = fscanf(fp,"%d",&ntris);
+
+  link->BeginModel();
+  for (i = 0; i < ntris; i++)
+    {
+      double p1x,p1y,p1z,p2x,p2y,p2z,p3x,p3y,p3z;
+      llll = fscanf(fp,"%lf %lf %lf %lf %lf %lf %lf %lf %lf", 
+		    &p1x,&p1y,&p1z,&p2x,&p2y,&p2z,&p3x,&p3y,&p3z);
+      PQP_REAL p1[3],p2[3],p3[3];
+      p1[0] = (PQP_REAL)p1x; p1[1] = (PQP_REAL)p1y; p1[2] = (PQP_REAL)p1z;
+      p2[0] = (PQP_REAL)p2x; p2[1] = (PQP_REAL)p2y; p2[2] = (PQP_REAL)p2z;
+      p3[0] = (PQP_REAL)p3x; p3[1] = (PQP_REAL)p3y; p3[2] = (PQP_REAL)p3z;
+      link->AddTri(p1,p2,p3,i);
+    }
+  llll = llll*llll;
+  link->EndModel();
+  fclose(fp);
+}
+
+void load_robot(){
+  
+  char teststring[] = "input_files/bases.tris";
+  load_link(teststring, &Base.link);
+  KUKA.links.push_front(&Base);
+		
+  sprintf(teststring, "input_files/link1.tris");
+  load_link(teststring, &Link1.link);
+  KUKA.links.push_front(&Link1);
+		
+  sprintf(teststring, "input_files/link2.tris");
+  load_link(teststring, &Link2.link);
+  KUKA.links.push_front(&Link2);
+ 
+  sprintf(teststring, "input_files/link3.tris");
+  load_link(teststring, &Link3.link);
+  KUKA.links.push_front(&Link3);
+
+  sprintf(teststring, "input_files/link4.tris");
+  load_link(teststring, &Link4.link);
+  KUKA.links.push_front(&Link4);
+
+  sprintf(teststring, "input_files/link5.tris");
+  load_link(teststring, &Link5.link);
+  KUKA.links.push_front(&Link5);
+
+  sprintf(teststring, "input_files/link6.tris");
+  load_link(teststring, &Link6.link);
+  KUKA.links.push_front(&Link6);
+
+  sprintf(teststring, "input_files/link7.tris");
+  load_link(teststring, &Link7.link);
+  KUKA.links.push_front(&Link7);
+}
+
+void load_obstacles(){
+  
+  char teststring[] = "input_files/obsta.tris";
+  load_link(teststring, &Obstacle.link);
+  KUKA.objects_inw.push_front(&Obstacle);
+
+}
+
+void show_graphical_results(){
+  char* programPath = "KUKA_graphical_results";
+  pid_t pid = fork(); 
+  switch (pid) {
+	  case -1: /* Error */
+		  cout << "Uh-Oh! fork() failed.\n";
+		  exit(1);
+	  case 0: /* Child process */
+		  execl(programPath, NULL); /* Execute the program */
+		  cout << "Uh-Oh! execl() failed!"; /* execl doesn't return unless there's an error */
+		  exit(1);
+	  default: /* Parent process */
+		  //cout << "Process created with pid " << pid << "\n";
+		  int status;
+
+		  while (!WIFEXITED(status)) {
+			  waitpid(pid, status, 0); /* Wait for the process to complete */
+		  }
+		  //cout << "Process exited with " << WEXITSTATUS(status) << "\n";
+		  return 0;
+  }
+  return 0;
+  }
