@@ -1,3 +1,0 @@
-/home/manuelb/Downloads/kdtree/build/CMakeFiles/doc.dir
-/home/manuelb/Downloads/kdtree/build/CMakeFiles/main_mykdtree.dir
-/home/manuelb/Downloads/kdtree/build/CMakeFiles/main_mykdtree_example.dir
